@@ -41,7 +41,7 @@ function UploadCard({
 
   async function handleUpload() {
     if (!file) {
-      setError("Choose a file first.");
+      setError("先にファイルを選択してください。");
       return;
     }
 
@@ -55,7 +55,7 @@ function UploadCard({
         onImported(nextResult);
       });
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Import failed");
+      setError(uploadError instanceof Error ? uploadError.message : "取込に失敗しました。");
     } finally {
       setPending(false);
     }
@@ -67,7 +67,7 @@ function UploadCard({
       action={
         <button type="button" className="ghost-button" onClick={() => setFile(null)}>
           <RefreshCcw size={16} />
-          Clear selection
+          選択解除
         </button>
       }
     >
@@ -75,13 +75,13 @@ function UploadCard({
         <div className="upload-icon">{icon}</div>
         <div>
           <p className="muted">{caption}</p>
-          <p className="helper-text">The first sheet in CSV/XLSX is parsed and validated in the browser.</p>
+          <p className="helper-text">CSV / XLSX の先頭シートをブラウザ上で検証して取り込みます。</p>
         </div>
       </div>
 
       <label className="file-picker">
         <UploadCloud size={18} />
-        <span>{file?.name ?? "Choose file"}</span>
+        <span>{file?.name ?? "ファイルを選択"}</span>
         <input
           type="file"
           accept=".csv,.xlsx,.xls"
@@ -92,7 +92,7 @@ function UploadCard({
 
       <div className="button-row">
         <button type="button" className="button" disabled={pending} onClick={handleUpload}>
-          {pending ? "Validating..." : "Validate and import"}
+          {pending ? "検証中..." : "検証して取り込む"}
         </button>
       </div>
 
@@ -101,10 +101,10 @@ function UploadCard({
       {result ? (
         <div className="stack">
           <div className="pill-row">
-            <span className="pill ok">accepted {result.summary.acceptedRows}</span>
-            <span className="pill neutral">rows {result.summary.totalRows}</span>
-            <span className="pill warn">warnings {result.summary.warningCount}</span>
-            <span className="pill risk">errors {result.summary.errorCount}</span>
+            <span className="pill ok">取込 {result.summary.acceptedRows} 件</span>
+            <span className="pill neutral">全 {result.summary.totalRows} 行</span>
+            <span className="pill warn">警告 {result.summary.warningCount}</span>
+            <span className="pill risk">エラー {result.summary.errorCount}</span>
           </div>
 
           <HeaderMappingTable mappings={result.headerMappings} />
@@ -113,10 +113,10 @@ function UploadCard({
           <table className="table compact-table">
             <thead>
               <tr>
-                <th>Product Code</th>
-                <th>Product Name</th>
-                <th>Period</th>
-                <th>Qty</th>
+                <th>銘柄コード</th>
+                <th>銘柄名</th>
+                <th>対象年月</th>
+                <th>数量</th>
               </tr>
             </thead>
             <tbody>
@@ -144,19 +144,19 @@ export function ImportWorkspace() {
   const stats = useMemo(
     () => [
       {
-        label: "Sales Rows",
+        label: "売上実績行数",
         value: salesImport ? formatNumber(salesImport.records.length) : "0",
-        detail: salesImport ? `${salesImport.products.length} products loaded` : "Upload monthly sales history"
+        detail: salesImport ? `${salesImport.products.length} 銘柄を読込済み` : "月次売上実績をアップロード"
       },
       {
-        label: "Inventory Rows",
+        label: "在庫行数",
         value: inventoryImport ? formatNumber(inventoryImport.records.length) : "0",
-        detail: inventoryImport ? `${inventoryImport.products.length} products loaded` : "Upload current stock snapshot"
+        detail: inventoryImport ? `${inventoryImport.products.length} 銘柄を読込済み` : "現在在庫をアップロード"
       },
       {
-        label: "Next Step",
-        value: salesImport ? "Ready" : "Waiting",
-        detail: salesImport ? "Move to forecast and apply overrides" : "Sales import is required first"
+        label: "次の操作",
+        value: salesImport ? "準備完了" : "待機中",
+        detail: salesImport ? "需要予測画面で補正を設定" : "まず売上実績の取込が必要"
       }
     ],
     [inventoryImport, salesImport]
@@ -165,19 +165,19 @@ export function ImportWorkspace() {
   return (
     <div className="page-stack">
       <section className="hero hero-brew">
-        <p className="eyebrow">Season 2026-10 to 2027-09</p>
-        <h3>Connect current stock to next season demand before deciding brew volume.</h3>
+        <p className="eyebrow">対象期間 2026-10 から 2027-09</p>
+        <h3>現在在庫と来季需要をつないで、必要な醸造量を先に見積もる。</h3>
         <p>
-          Import monthly sales history and current inventory first. The next screen will forecast monthly demand from
-          seasonality and recent trend, then let planners override product-level and month-level assumptions.
+          月次売上実績と現在在庫を取り込むと、次の画面で季節性と直近トレンドから月別需要を推計できます。
+          その後、銘柄単位・月単位で補正し、必要醸造量へ反映します。
         </p>
         <div className="hero-actions">
           <Link href="/forecast" className="button secondary-button">
-            Open forecast
+            需要予測へ進む
           </Link>
           <button type="button" className="ghost-button ghost-button-light" onClick={clearAll}>
             <Trash2 size={16} />
-            Reset all data
+            すべてリセット
           </button>
         </div>
       </section>
@@ -190,8 +190,8 @@ export function ImportWorkspace() {
 
       <section className="split split-balanced">
         <UploadCard
-          title="Monthly Sales History"
-          caption="Required columns: product_code, product_name, year, month, sales_qty"
+          title="月次売上実績"
+          caption="必須列: product_code, product_name, year, month, sales_qty"
           icon={<FileSpreadsheet size={20} />}
           file={salesFile}
           setFile={setSalesFile}
@@ -200,8 +200,8 @@ export function ImportWorkspace() {
           importer={importSalesRecords}
         />
         <UploadCard
-          title="Current Inventory Snapshot"
-          caption="Required columns: product_code, product_name, stock_qty, snapshot_date"
+          title="現在在庫スナップショット"
+          caption="必須列: product_code, product_name, stock_qty, snapshot_date"
           icon={<Database size={20} />}
           file={inventoryFile}
           setFile={setInventoryFile}

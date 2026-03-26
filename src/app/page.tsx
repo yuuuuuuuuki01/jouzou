@@ -3,10 +3,7 @@ import { ImportWorkspace } from "@/components/brewing/import-workspace";
 
 export default function HomePage() {
   return (
-    <AppShell
-      title="Data Import"
-      description="Import monthly sales history and current inventory to prepare the demand forecast and required brew plan."
-    >
+    <AppShell title="データ取込" description="月次売上実績と現在在庫を取り込み、需要予測と必要醸造量計算の準備を行います。">
       <ImportWorkspace />
     </AppShell>
   );

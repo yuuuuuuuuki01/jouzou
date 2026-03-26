@@ -28,8 +28,8 @@ function AdjustmentEditor({
   return (
     <div className="inline-form">
       <select value={mode} onChange={(event) => setMode(event.target.value as ForecastAdjustment["mode"])}>
-        <option value="percent">% override</option>
-        <option value="absolute">Qty delta</option>
+        <option value="percent">％補正</option>
+        <option value="absolute">数量加減</option>
       </select>
       <input value={value} onChange={(event) => setValue(event.target.value)} placeholder="0" />
       <button
@@ -43,10 +43,10 @@ function AdjustmentEditor({
           })
         }
       >
-        Save
+        保存
       </button>
       <button type="button" className="ghost-button" onClick={onClear}>
-        Clear
+        解除
       </button>
     </div>
   );
@@ -84,7 +84,7 @@ export function ForecastWorkspace() {
       })
       .catch((requestError) => {
         if (!cancelled) {
-          setError(requestError instanceof Error ? requestError.message : "Forecast calculation failed");
+          setError(requestError instanceof Error ? requestError.message : "需要予測の計算に失敗しました。");
         }
       })
       .finally(() => {
@@ -106,19 +106,19 @@ export function ForecastWorkspace() {
   const stats = useMemo(
     () => [
       {
-        label: "Products",
+        label: "対象銘柄数",
         value: forecast ? formatNumber(forecast.productForecasts.length) : "0",
-        detail: "Seasonality and recent trend applied"
+        detail: "季節性と直近トレンドを反映"
       },
       {
-        label: "Season Total",
+        label: "来季予測合計",
         value: forecast ? formatNumber(forecast.productForecasts.reduce((sum, item) => sum + item.forecastTotal, 0)) : "0",
-        detail: "Adjusted forecast total for 2026-10 to 2027-09"
+        detail: "2026-10 から 2027-09 の補正後合計"
       },
       {
-        label: "Overrides",
+        label: "手動補正数",
         value: formatNumber(adjustments.length),
-        detail: adjustments.length > 0 ? "Manual demand overrides active" : "No manual overrides"
+        detail: adjustments.length > 0 ? "手動補正が有効" : "手動補正なし"
       }
     ],
     [adjustments.length, forecast]
@@ -126,10 +126,10 @@ export function ForecastWorkspace() {
 
   if (!salesImport?.records.length) {
     return (
-      <SectionCard title="Demand Forecast">
-        <p className="muted">Sales history has not been imported yet.</p>
+      <SectionCard title="需要予測">
+        <p className="muted">売上実績がまだ取り込まれていません。</p>
         <Link href="/" className="button">
-          Go to data import
+          データ取込へ戻る
         </Link>
       </SectionCard>
     );
@@ -148,17 +148,17 @@ export function ForecastWorkspace() {
   return (
     <div className="page-stack">
       <section className="hero hero-forecast">
-        <p className="eyebrow">Forecast Studio</p>
-        <h3>Review seasonality, then override demand where planners know more than the model.</h3>
+        <p className="eyebrow">需要予測スタジオ</p>
+        <h3>季節性を確認しながら、現場判断を補正として上乗せする。</h3>
         <p>
-          The base forecast uses clipped historical sales, monthly seasonal indices, and a recent weighted trend. Add
-          product-level or month-level overrides for promotions, events, or channel changes.
+          ベース予測は、外れ値を抑えた過去実績、月別季節指数、直近の加重トレンドから自動算出します。
+          販促、イベント、販路変更などは銘柄単位または月単位で補正してください。
         </p>
         <div className="hero-actions">
           <Link href="/plan" className="button secondary-button">
-            Open brew requirement
+            必要醸造量へ進む
           </Link>
-          {loading ? <span className="pill warn">Recalculating...</span> : <span className="pill ok">Forecast ready</span>}
+          {loading ? <span className="pill warn">再計算中...</span> : <span className="pill ok">予測完了</span>}
         </div>
       </section>
 
@@ -171,7 +171,7 @@ export function ForecastWorkspace() {
       {error ? <p className="feedback risk-text">{error}</p> : null}
 
       <section className="split split-forecast">
-        <SectionCard title="Product Forecasts">
+        <SectionCard title="銘柄別予測">
           <div className="product-list">
             {forecast?.productForecasts.map((product) => (
               <button
@@ -186,7 +186,7 @@ export function ForecastWorkspace() {
                 </div>
                 <div className="align-right">
                   <strong>{formatNumber(product.forecastTotal)}</strong>
-                  <p className="muted">trend {(product.yearlyTrendRate * 100).toFixed(1)}%</p>
+                  <p className="muted">トレンド {(product.yearlyTrendRate * 100).toFixed(1)}%</p>
                 </div>
               </button>
             ))}
@@ -194,14 +194,14 @@ export function ForecastWorkspace() {
         </SectionCard>
 
         {selectedProduct ? (
-          <SectionCard title={`${selectedProduct.productName} detail`}>
+          <SectionCard title={`${selectedProduct.productName} の詳細`}>
             <div className="inline-stats">
               <div>
-                <p className="eyebrow">Recent Avg</p>
+                <p className="eyebrow">直近月販平均</p>
                 <strong>{formatNumber(selectedProduct.recentAverageMonthlySales)}</strong>
               </div>
               <div>
-                <p className="eyebrow">Forecast Total</p>
+                <p className="eyebrow">来季予測合計</p>
                 <strong>{formatNumber(selectedProduct.forecastTotal)}</strong>
               </div>
             </div>
@@ -210,7 +210,7 @@ export function ForecastWorkspace() {
 
             {productAdjustment ? (
               <div className="adjustment-row">
-                <strong>Product-wide override</strong>
+                <strong>銘柄全体の補正</strong>
                 <AdjustmentEditor
                   adjustment={productAdjustment}
                   onSave={(value) =>
@@ -228,11 +228,11 @@ export function ForecastWorkspace() {
             <table className="table compact-table">
               <thead>
                 <tr>
-                  <th>Year Month</th>
-                  <th>Last Year</th>
-                  <th>Base</th>
-                  <th>Adjusted</th>
-                  <th>Monthly Override</th>
+                  <th>年月</th>
+                  <th>前年実績</th>
+                  <th>ベース予測</th>
+                  <th>補正後</th>
+                  <th>月別補正</th>
                 </tr>
               </thead>
               <tbody>

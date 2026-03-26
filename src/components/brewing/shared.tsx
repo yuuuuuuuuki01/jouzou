@@ -44,7 +44,7 @@ export function SectionCard({
 
 export function IssueList({ issues }: { issues: ImportIssue[] }) {
   if (issues.length === 0) {
-    return <p className="muted">No validation issues were found.</p>;
+    return <p className="muted">検証上の問題はありません。</p>;
   }
 
   return (
@@ -52,8 +52,8 @@ export function IssueList({ issues }: { issues: ImportIssue[] }) {
       {issues.map((issue, index) => (
         <div key={`${issue.message}-${index}`} className={`note ${issue.level === "error" ? "note-risk" : "note-warn"}`}>
           <div className="inline-stats">
-            <strong>{issue.level === "error" ? "Error" : "Warning"}</strong>
-            {issue.row ? <span className="code">row {issue.row}</span> : null}
+            <strong>{issue.level === "error" ? "エラー" : "警告"}</strong>
+            {issue.row ? <span className="code">行 {issue.row}</span> : null}
           </div>
           <p className="muted">{issue.message}</p>
         </div>
@@ -67,15 +67,15 @@ export function HeaderMappingTable({ mappings }: { mappings: HeaderMapping[] }) 
     <table className="table compact-table">
       <thead>
         <tr>
-          <th>Input Column</th>
-          <th>Mapped To</th>
+          <th>入力列</th>
+          <th>対応先</th>
         </tr>
       </thead>
       <tbody>
         {mappings.map((mapping) => (
           <tr key={mapping.source}>
             <td>{mapping.source}</td>
-            <td>{mapping.target ?? "Unused"}</td>
+            <td>{mapping.target ?? "未使用"}</td>
           </tr>
         ))}
       </tbody>

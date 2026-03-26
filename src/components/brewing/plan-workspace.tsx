@@ -77,7 +77,7 @@ export function PlanWorkspace() {
       })
       .catch((requestError) => {
         if (!cancelled) {
-          setError(requestError instanceof Error ? requestError.message : "Brew requirement calculation failed");
+          setError(requestError instanceof Error ? requestError.message : "必要醸造量の計算に失敗しました。");
         }
       })
       .finally(() => {
@@ -94,19 +94,19 @@ export function PlanWorkspace() {
   const stats = useMemo(
     () => [
       {
-        label: "Required Brew Qty",
+        label: "必要醸造量合計",
         value: plan ? formatNumber(plan.requirements.reduce((sum, item) => sum + item.requiredBrewQty, 0)) : "0",
-        detail: "Forecast + safety stock - current stock"
+        detail: "予測需要 + 安全在庫 - 現在在庫"
       },
       {
-        label: "Adjusted Products",
+        label: "補正反映銘柄数",
         value: plan ? formatNumber(plan.requirements.filter((item) => item.adjustmentApplied).length) : "0",
-        detail: "Products influenced by manual forecast overrides"
+        detail: "手動補正が計画に反映された銘柄"
       },
       {
-        label: "Covered By Stock",
+        label: "在庫で充足可能",
         value: plan ? formatNumber(plan.requirements.filter((item) => item.requiredBrewQty === 0).length) : "0",
-        detail: "Products already covered by current inventory"
+        detail: "現在在庫で来季需要を賄える銘柄"
       }
     ],
     [plan]
@@ -114,10 +114,10 @@ export function PlanWorkspace() {
 
   if (!forecast) {
     return (
-      <SectionCard title="Brew Requirement">
-        <p className="muted">Demand forecast is not available yet.</p>
+      <SectionCard title="必要醸造量">
+        <p className="muted">需要予測がまだありません。</p>
         <Link href="/forecast" className="button">
-          Go to forecast
+          需要予測へ移動
         </Link>
       </SectionCard>
     );
@@ -125,10 +125,10 @@ export function PlanWorkspace() {
 
   if (!inventoryImport?.records.length) {
     return (
-      <SectionCard title="Brew Requirement">
-        <p className="muted">Inventory snapshot has not been imported yet.</p>
+      <SectionCard title="必要醸造量">
+        <p className="muted">在庫スナップショットがまだ取り込まれていません。</p>
         <Link href="/" className="button">
-          Go to data import
+          データ取込へ戻る
         </Link>
       </SectionCard>
     );
@@ -137,20 +137,19 @@ export function PlanWorkspace() {
   return (
     <div className="page-stack">
       <section className="hero hero-plan">
-        <p className="eyebrow">Brew Requirement</p>
-        <h3>Turn adjusted demand into a clear brew quantity by product.</h3>
+        <p className="eyebrow">必要醸造量</p>
+        <h3>補正済み需要を、銘柄ごとの醸造必要量に落とし込む。</h3>
         <p>
-          Safety stock months can be tuned per product. Every change immediately recalculates the required brew quantity
-          and can be exported to CSV for handoff.
+          安全在庫月数は銘柄ごとに調整できます。値を変えるたびに必要醸造量を再計算し、そのまま CSV で出力できます。
         </p>
         <div className="hero-actions">
           {plan ? (
             <button type="button" className="button secondary-button" onClick={() => downloadCsv(plan)}>
               <Download size={16} />
-              Export CSV
+              CSV を出力
             </button>
           ) : null}
-          {loading ? <span className="pill warn">Recalculating...</span> : <span className="pill ok">Plan ready</span>}
+          {loading ? <span className="pill warn">再計算中...</span> : <span className="pill ok">計画作成済み</span>}
         </div>
       </section>
 
@@ -162,17 +161,17 @@ export function PlanWorkspace() {
 
       {error ? <p className="feedback risk-text">{error}</p> : null}
 
-      <SectionCard title="Required Brew Quantity by Product">
+      <SectionCard title="銘柄別 必要醸造量">
         <table className="table">
           <thead>
             <tr>
-              <th>Product</th>
-              <th>Forecast Total</th>
-              <th>Current Stock</th>
-              <th>Safety Months</th>
-              <th>Safety Stock</th>
-              <th>Required Brew Qty</th>
-              <th>Notes</th>
+              <th>銘柄</th>
+              <th>来季予測合計</th>
+              <th>現在在庫</th>
+              <th>安全在庫月数</th>
+              <th>安全在庫</th>
+              <th>必要醸造量</th>
+              <th>備考</th>
             </tr>
           </thead>
           <tbody>

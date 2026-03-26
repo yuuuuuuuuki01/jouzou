@@ -7,9 +7,9 @@ import type { ReactNode } from "react";
 import { BarChart3, FlaskConical, Package2, TrendingUp } from "lucide-react";
 
 const navItems = [
-  { href: "/" as Route, label: "Data Import", icon: Package2 },
-  { href: "/forecast" as Route, label: "Demand Forecast", icon: TrendingUp },
-  { href: "/plan" as Route, label: "Brew Requirement", icon: FlaskConical }
+  { href: "/" as Route, label: "データ取込", icon: Package2 },
+  { href: "/forecast" as Route, label: "需要予測", icon: TrendingUp },
+  { href: "/plan" as Route, label: "必要醸造量", icon: FlaskConical }
 ];
 
 export function AppShell({
@@ -31,7 +31,7 @@ export function AppShell({
             <BarChart3 size={18} />
           </div>
           <div>
-            <p className="eyebrow">Sake Planning Suite</p>
+            <p className="eyebrow">酒造計画ツール</p>
             <h1>BrewPilot</h1>
           </div>
         </div>
@@ -51,15 +51,15 @@ export function AppShell({
         </nav>
 
         <div className="sidebar-note">
-          <p className="eyebrow">Target Season</p>
-          <strong>2026-10-01 to 2027-09-30</strong>
-          <p className="muted">PoC scope: inventory, monthly sales history, and manual forecast overrides.</p>
+          <p className="eyebrow">対象期間</p>
+          <strong>2026-10-01 から 2027-09-30</strong>
+          <p className="muted">PoC 範囲: 製品在庫、月次売上実績、手動補正による需要予測。</p>
         </div>
       </aside>
 
       <main className="main">
         <header className="page-header">
-          <p className="eyebrow">Brewing Demand Planning</p>
+          <p className="eyebrow">来季醸造量計画</p>
           <h2>{title}</h2>
           <p className="page-description">{description}</p>
         </header>
