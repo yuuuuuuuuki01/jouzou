@@ -2,12 +2,28 @@
 
 import Link from "next/link";
 import { startTransition, useMemo, useState, type ReactNode } from "react";
-import { Database, FileSpreadsheet, RefreshCcw, Trash2, UploadCloud } from "lucide-react";
+import { Database, FileSpreadsheet, Plus, RefreshCcw, Trash2, UploadCloud } from "lucide-react";
+import * as XLSX from "xlsx";
 
 import { useBrewPlanner } from "@/components/brewing/brew-planner-provider";
 import { HeaderMappingTable, IssueList, SectionCard, StatCard, formatNumber } from "@/components/brewing/shared";
 import { importInventoryRecords, importSalesRecords } from "@/lib/brewing/parser";
 import type { InventoryImportResult, InventorySnapshot, MonthlySalesRecord, SalesImportResult } from "@/lib/brewing/types";
+
+type SalesDraft = {
+  productCode: string;
+  productName: string;
+  year: string;
+  month: string;
+  salesQty: string;
+};
+
+type InventoryDraft = {
+  productCode: string;
+  productName: string;
+  stockQty: string;
+  snapshotDate: string;
+};
 
 function previewDate(record: MonthlySalesRecord | InventorySnapshot) {
   return "yearMonth" in record ? record.yearMonth : record.snapshotDate;
@@ -15,6 +31,14 @@ function previewDate(record: MonthlySalesRecord | InventorySnapshot) {
 
 function previewQuantity(record: MonthlySalesRecord | InventorySnapshot) {
   return "salesQty" in record ? record.salesQty : record.stockQty;
+}
+
+function buildWorkbookBuffer(rows: Array<Array<string | number>>) {
+  const sheet = XLSX.utils.aoa_to_sheet(rows);
+  const book = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(book, sheet, "input");
+  const buffer = XLSX.write(book, { type: "buffer", bookType: "xlsx" });
+  return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
 }
 
 function UploadCard({
@@ -140,6 +164,23 @@ export function ImportWorkspace() {
   const { clearAll, inventoryImport, salesImport, setInventoryImport, setSalesImport } = useBrewPlanner();
   const [salesFile, setSalesFile] = useState<File | null>(null);
   const [inventoryFile, setInventoryFile] = useState<File | null>(null);
+  const [salesRows, setSalesRows] = useState<SalesDraft[]>([]);
+  const [inventoryRows, setInventoryRows] = useState<InventoryDraft[]>([]);
+  const [salesDraft, setSalesDraft] = useState<SalesDraft>({
+    productCode: "",
+    productName: "",
+    year: "",
+    month: "",
+    salesQty: ""
+  });
+  const [inventoryDraft, setInventoryDraft] = useState<InventoryDraft>({
+    productCode: "",
+    productName: "",
+    stockQty: "",
+    snapshotDate: ""
+  });
+  const [salesManualError, setSalesManualError] = useState<string | null>(null);
+  const [inventoryManualError, setInventoryManualError] = useState<string | null>(null);
 
   const stats = useMemo(
     () => [
@@ -162,6 +203,67 @@ export function ImportWorkspace() {
     [inventoryImport, salesImport]
   );
 
+  function appendSalesRow() {
+    if (!salesDraft.productCode || !salesDraft.productName || !salesDraft.year || !salesDraft.month || !salesDraft.salesQty) {
+      setSalesManualError("売上実績の各項目をすべて入力してください。");
+      return;
+    }
+
+    setSalesManualError(null);
+    setSalesRows((current) => [...current, salesDraft]);
+    setSalesDraft({
+      productCode: "",
+      productName: "",
+      year: "",
+      month: "",
+      salesQty: ""
+    });
+  }
+
+  function appendInventoryRow() {
+    if (!inventoryDraft.productCode || !inventoryDraft.productName || !inventoryDraft.stockQty || !inventoryDraft.snapshotDate) {
+      setInventoryManualError("在庫入力の各項目をすべて入力してください。");
+      return;
+    }
+
+    setInventoryManualError(null);
+    setInventoryRows((current) => [...current, inventoryDraft]);
+    setInventoryDraft({
+      productCode: "",
+      productName: "",
+      stockQty: "",
+      snapshotDate: ""
+    });
+  }
+
+  function importSalesFromManualRows() {
+    if (salesRows.length === 0) {
+      setSalesManualError("取り込む売上実績行がありません。");
+      return;
+    }
+
+    const buffer = buildWorkbookBuffer([
+      ["product_code", "product_name", "year", "month", "sales_qty"],
+      ...salesRows.map((row) => [row.productCode, row.productName, row.year, row.month, row.salesQty])
+    ]);
+    setSalesImport(importSalesRecords(buffer));
+    setSalesManualError(null);
+  }
+
+  function importInventoryFromManualRows() {
+    if (inventoryRows.length === 0) {
+      setInventoryManualError("取り込む在庫行がありません。");
+      return;
+    }
+
+    const buffer = buildWorkbookBuffer([
+      ["product_code", "product_name", "stock_qty", "snapshot_date"],
+      ...inventoryRows.map((row) => [row.productCode, row.productName, row.stockQty, row.snapshotDate])
+    ]);
+    setInventoryImport(importInventoryRecords(buffer));
+    setInventoryManualError(null);
+  }
+
   return (
     <div className="page-stack">
       <section className="hero hero-brew">
@@ -169,7 +271,7 @@ export function ImportWorkspace() {
         <h3>現在在庫と来季需要をつないで、必要な醸造量を先に見積もる。</h3>
         <p>
           月次売上実績と現在在庫を取り込むと、次の画面で季節性と直近トレンドから月別需要を推計できます。
-          その後、銘柄単位・月単位で補正し、必要醸造量へ反映します。
+          ファイル取込に加えて、下のフォームから実績や在庫を手入力することもできます。
         </p>
         <div className="hero-actions">
           <Link href="/forecast" className="button secondary-button">
@@ -209,6 +311,142 @@ export function ImportWorkspace() {
           onImported={(result) => setInventoryImport(result as InventoryImportResult)}
           importer={importInventoryRecords}
         />
+      </section>
+
+      <section className="split split-balanced">
+        <SectionCard title="売上実績を手入力">
+          <div className="manual-grid manual-grid-sales">
+            <label className="field">
+              <span className="helper-text">銘柄コード</span>
+              <input value={salesDraft.productCode} onChange={(event) => setSalesDraft((current) => ({ ...current, productCode: event.target.value }))} />
+            </label>
+            <label className="field">
+              <span className="helper-text">銘柄名</span>
+              <input value={salesDraft.productName} onChange={(event) => setSalesDraft((current) => ({ ...current, productName: event.target.value }))} />
+            </label>
+            <label className="field">
+              <span className="helper-text">年</span>
+              <input value={salesDraft.year} onChange={(event) => setSalesDraft((current) => ({ ...current, year: event.target.value }))} placeholder="2025" />
+            </label>
+            <label className="field">
+              <span className="helper-text">月</span>
+              <input value={salesDraft.month} onChange={(event) => setSalesDraft((current) => ({ ...current, month: event.target.value }))} placeholder="10" />
+            </label>
+            <label className="field">
+              <span className="helper-text">数量</span>
+              <input value={salesDraft.salesQty} onChange={(event) => setSalesDraft((current) => ({ ...current, salesQty: event.target.value }))} placeholder="1200" />
+            </label>
+          </div>
+          <div className="button-row">
+            <button type="button" className="button" onClick={appendSalesRow}>
+              <Plus size={16} />
+              1行追加
+            </button>
+            <button type="button" className="ghost-button" onClick={importSalesFromManualRows}>
+              この内容で取り込む
+            </button>
+          </div>
+          {salesManualError ? <p className="feedback risk-text">{salesManualError}</p> : null}
+          <table className="table compact-table">
+            <thead>
+              <tr>
+                <th>銘柄コード</th>
+                <th>銘柄名</th>
+                <th>年</th>
+                <th>月</th>
+                <th>数量</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {salesRows.map((row, index) => (
+                <tr key={`${row.productCode}-${row.year}-${row.month}-${index}`}>
+                  <td>{row.productCode}</td>
+                  <td>{row.productName}</td>
+                  <td>{row.year}</td>
+                  <td>{row.month}</td>
+                  <td>{row.salesQty}</td>
+                  <td>
+                    <button type="button" className="ghost-button" onClick={() => setSalesRows((current) => current.filter((_, currentIndex) => currentIndex !== index))}>
+                      削除
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {salesRows.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="muted">
+                    まだ行がありません。上のフォームで追加してください。
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </SectionCard>
+
+        <SectionCard title="在庫を手入力">
+          <div className="manual-grid manual-grid-inventory">
+            <label className="field">
+              <span className="helper-text">銘柄コード</span>
+              <input value={inventoryDraft.productCode} onChange={(event) => setInventoryDraft((current) => ({ ...current, productCode: event.target.value }))} />
+            </label>
+            <label className="field">
+              <span className="helper-text">銘柄名</span>
+              <input value={inventoryDraft.productName} onChange={(event) => setInventoryDraft((current) => ({ ...current, productName: event.target.value }))} />
+            </label>
+            <label className="field">
+              <span className="helper-text">在庫数量</span>
+              <input value={inventoryDraft.stockQty} onChange={(event) => setInventoryDraft((current) => ({ ...current, stockQty: event.target.value }))} placeholder="800" />
+            </label>
+            <label className="field">
+              <span className="helper-text">基準日</span>
+              <input type="date" value={inventoryDraft.snapshotDate} onChange={(event) => setInventoryDraft((current) => ({ ...current, snapshotDate: event.target.value }))} />
+            </label>
+          </div>
+          <div className="button-row">
+            <button type="button" className="button" onClick={appendInventoryRow}>
+              <Plus size={16} />
+              1行追加
+            </button>
+            <button type="button" className="ghost-button" onClick={importInventoryFromManualRows}>
+              この内容で取り込む
+            </button>
+          </div>
+          {inventoryManualError ? <p className="feedback risk-text">{inventoryManualError}</p> : null}
+          <table className="table compact-table">
+            <thead>
+              <tr>
+                <th>銘柄コード</th>
+                <th>銘柄名</th>
+                <th>在庫数量</th>
+                <th>基準日</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {inventoryRows.map((row, index) => (
+                <tr key={`${row.productCode}-${row.snapshotDate}-${index}`}>
+                  <td>{row.productCode}</td>
+                  <td>{row.productName}</td>
+                  <td>{row.stockQty}</td>
+                  <td>{row.snapshotDate}</td>
+                  <td>
+                    <button type="button" className="ghost-button" onClick={() => setInventoryRows((current) => current.filter((_, currentIndex) => currentIndex !== index))}>
+                      削除
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {inventoryRows.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="muted">
+                    まだ行がありません。上のフォームで追加してください。
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </SectionCard>
       </section>
     </div>
   );
