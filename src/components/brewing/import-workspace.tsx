@@ -6,23 +6,8 @@ import { Database, FileSpreadsheet, RefreshCcw, Trash2, UploadCloud } from "luci
 
 import { useBrewPlanner } from "@/components/brewing/brew-planner-provider";
 import { HeaderMappingTable, IssueList, SectionCard, StatCard, formatNumber } from "@/components/brewing/shared";
+import { importInventoryRecords, importSalesRecords } from "@/lib/brewing/parser";
 import type { InventoryImportResult, InventorySnapshot, MonthlySalesRecord, SalesImportResult } from "@/lib/brewing/types";
-
-async function uploadImport<T>(url: string, file: File) {
-  const formData = new FormData();
-  formData.append("file", file);
-
-  const response = await fetch(url, {
-    method: "POST",
-    body: formData
-  });
-
-  if (!response.ok) {
-    throw new Error("Upload failed");
-  }
-
-  return (await response.json()) as T;
-}
 
 function previewDate(record: MonthlySalesRecord | InventorySnapshot) {
   return "yearMonth" in record ? record.yearMonth : record.snapshotDate;
@@ -36,20 +21,20 @@ function UploadCard({
   title,
   caption,
   icon,
-  endpoint,
   file,
   setFile,
   result,
-  onImported
+  onImported,
+  importer
 }: {
   title: string;
   caption: string;
   icon: ReactNode;
-  endpoint: string;
   file: File | null;
   setFile: (file: File | null) => void;
   result: SalesImportResult | InventoryImportResult | null;
   onImported: (result: SalesImportResult | InventoryImportResult) => void;
+  importer: (buffer: ArrayBuffer) => SalesImportResult | InventoryImportResult;
 }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,12 +49,13 @@ function UploadCard({
     setError(null);
 
     try {
-      const nextResult = await uploadImport<SalesImportResult | InventoryImportResult>(endpoint, file);
+      const buffer = await file.arrayBuffer();
+      const nextResult = importer(buffer);
       startTransition(() => {
         onImported(nextResult);
       });
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Upload failed");
+      setError(uploadError instanceof Error ? uploadError.message : "Import failed");
     } finally {
       setPending(false);
     }
@@ -89,7 +75,7 @@ function UploadCard({
         <div className="upload-icon">{icon}</div>
         <div>
           <p className="muted">{caption}</p>
-          <p className="helper-text">The first sheet in CSV/XLSX is parsed and validated.</p>
+          <p className="helper-text">The first sheet in CSV/XLSX is parsed and validated in the browser.</p>
         </div>
       </div>
 
@@ -207,21 +193,21 @@ export function ImportWorkspace() {
           title="Monthly Sales History"
           caption="Required columns: product_code, product_name, year, month, sales_qty"
           icon={<FileSpreadsheet size={20} />}
-          endpoint="/api/import/sales"
           file={salesFile}
           setFile={setSalesFile}
           result={salesImport}
           onImported={(result) => setSalesImport(result as SalesImportResult)}
+          importer={importSalesRecords}
         />
         <UploadCard
           title="Current Inventory Snapshot"
           caption="Required columns: product_code, product_name, stock_qty, snapshot_date"
           icon={<Database size={20} />}
-          endpoint="/api/import/inventory"
           file={inventoryFile}
           setFile={setInventoryFile}
           result={inventoryImport}
           onImported={(result) => setInventoryImport(result as InventoryImportResult)}
+          importer={importInventoryRecords}
         />
       </section>
     </div>

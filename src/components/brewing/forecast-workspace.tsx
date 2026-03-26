@@ -5,26 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 
 import { useBrewPlanner } from "@/components/brewing/brew-planner-provider";
 import { ForecastChart, SectionCard, StatCard, formatNumber } from "@/components/brewing/shared";
-import type { ForecastAdjustment, ForecastResult, ProductForecast } from "@/lib/brewing/types";
-
-async function requestForecast(salesRecords: unknown, adjustments: ForecastAdjustment[]) {
-  const response = await fetch("/api/forecast", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      salesRecords,
-      adjustments
-    })
-  });
-
-  if (!response.ok) {
-    throw new Error("Forecast request failed");
-  }
-
-  return (await response.json()) as ForecastResult;
-}
+import { generateForecast } from "@/lib/brewing/forecast";
+import type { ForecastAdjustment, ProductForecast } from "@/lib/brewing/types";
 
 function AdjustmentEditor({
   adjustment,
@@ -85,7 +67,13 @@ export function ForecastWorkspace() {
     setLoading(true);
     setError(null);
 
-    requestForecast(salesImport.records, adjustments)
+    Promise.resolve()
+      .then(() =>
+        generateForecast({
+          salesRecords: salesImport.records,
+          adjustments
+        })
+      )
       .then((result) => {
         if (cancelled) {
           return;
@@ -96,7 +84,7 @@ export function ForecastWorkspace() {
       })
       .catch((requestError) => {
         if (!cancelled) {
-          setError(requestError instanceof Error ? requestError.message : "Forecast request failed");
+          setError(requestError instanceof Error ? requestError.message : "Forecast calculation failed");
         }
       })
       .finally(() => {

@@ -6,27 +6,8 @@ import { Download } from "lucide-react";
 
 import { useBrewPlanner } from "@/components/brewing/brew-planner-provider";
 import { SectionCard, StatCard, formatNumber } from "@/components/brewing/shared";
+import { generateBrewPlan } from "@/lib/brewing/plan";
 import type { BrewPlanResult } from "@/lib/brewing/types";
-
-async function requestPlan(forecast: unknown, inventoryRecords: unknown, safetyStockMonthsByProduct: Record<string, number>) {
-  const response = await fetch("/api/plan", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      forecast,
-      inventoryRecords,
-      safetyStockMonthsByProduct
-    })
-  });
-
-  if (!response.ok) {
-    throw new Error("Brew requirement request failed");
-  }
-
-  return (await response.json()) as BrewPlanResult;
-}
 
 function downloadCsv(plan: BrewPlanResult) {
   const lines = [
@@ -81,7 +62,14 @@ export function PlanWorkspace() {
     setLoading(true);
     setError(null);
 
-    requestPlan(forecast, inventoryImport.records, safetyStockMonthsByProduct)
+    Promise.resolve()
+      .then(() =>
+        generateBrewPlan({
+          forecast,
+          inventoryRecords: inventoryImport.records,
+          safetyStockMonthsByProduct
+        })
+      )
       .then((result) => {
         if (!cancelled) {
           setPlan(result);
@@ -89,7 +77,7 @@ export function PlanWorkspace() {
       })
       .catch((requestError) => {
         if (!cancelled) {
-          setError(requestError instanceof Error ? requestError.message : "Brew requirement request failed");
+          setError(requestError instanceof Error ? requestError.message : "Brew requirement calculation failed");
         }
       })
       .finally(() => {
