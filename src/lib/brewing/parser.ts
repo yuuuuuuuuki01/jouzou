@@ -14,17 +14,17 @@ import type {
 type RawRow = Record<string, unknown>;
 
 const SALES_COLUMNS: Record<string, string[]> = {
-  product_code: ["product_code", "productcode", "銘柄コード", "商品コード", "code"],
-  product_name: ["product_name", "productname", "銘柄名", "商品名", "name"],
+  product_code: ["product_code", "productcode", "商品コード", "銘柄コード", "code"],
+  product_name: ["product_name", "productname", "商品名", "銘柄名", "name"],
   year: ["year", "年度", "年"],
   month: ["month", "月"],
-  sales_qty: ["sales_qty", "salesqty", "売上数量", "販売数量", "出荷数量", "qty"]
+  sales_qty: ["sales_qty", "salesqty", "売上数量", "販売数量", "出荷数量", "売上量", "売上量_l", "売上量(l)", "qty"]
 };
 
 const INVENTORY_COLUMNS: Record<string, string[]> = {
-  product_code: ["product_code", "productcode", "銘柄コード", "商品コード", "code"],
-  product_name: ["product_name", "productname", "銘柄名", "商品名", "name"],
-  stock_qty: ["stock_qty", "stockqty", "在庫数量", "在庫量", "stock"],
+  product_code: ["product_code", "productcode", "商品コード", "銘柄コード", "code"],
+  product_name: ["product_name", "productname", "商品名", "銘柄名", "name"],
+  stock_qty: ["stock_qty", "stockqty", "在庫数量", "在庫量", "在庫量_l", "在庫量(l)", "stock"],
   snapshot_date: ["snapshot_date", "snapshotdate", "棚卸日", "在庫基準日", "date"]
 };
 
@@ -178,7 +178,7 @@ export function importSalesRecords(buffer: ArrayBuffer, now = new Date()): Sales
     const salesQty = toNumber(row[columnByTarget.get("sales_qty") ?? ""]);
 
     if (!productCode || !productName) {
-      issues.push(makeIssue("error", "銘柄コードまたは銘柄名が空です", rowNumber));
+      issues.push(makeIssue("error", "product_code または product_name が空です", rowNumber));
       return;
     }
     if (!Number.isInteger(year)) {
@@ -186,11 +186,11 @@ export function importSalesRecords(buffer: ArrayBuffer, now = new Date()): Sales
       return;
     }
     if (!Number.isInteger(month) || month < 1 || month > 12) {
-      issues.push(makeIssue("error", "month は 1-12 の整数で指定してください", rowNumber, "month"));
+      issues.push(makeIssue("error", "month は 1 から 12 の整数で指定してください", rowNumber, "month"));
       return;
     }
     if (!Number.isFinite(salesQty) || salesQty < 0) {
-      issues.push(makeIssue("error", "sales_qty は 0 以上の数値で指定してください", rowNumber, "sales_qty"));
+      issues.push(makeIssue("error", "sales_qty は 0 以上の数値（L）で指定してください", rowNumber, "sales_qty"));
       return;
     }
 
@@ -202,7 +202,7 @@ export function importSalesRecords(buffer: ArrayBuffer, now = new Date()): Sales
 
     const key = `${productCode}:${year}:${month}`;
     if (duplicateKeys.has(key)) {
-      issues.push(makeIssue("error", "同じ銘柄・年月の行が重複しています", rowNumber));
+      issues.push(makeIssue("error", "同じ product_code・年・月 の売上行が重複しています", rowNumber));
       return;
     }
     duplicateKeys.add(key);
@@ -235,7 +235,7 @@ export function importSalesRecords(buffer: ArrayBuffer, now = new Date()): Sales
       issues.push(makeIssue("warning", `${productCode} に月欠損があります`));
     }
     if (sorted.length < 36) {
-      issues.push(makeIssue("warning", `${productCode} の実績が 3 年未満です`));
+      issues.push(makeIssue("warning", `${productCode} の実績が 3 年分に満たないため予測精度に注意してください`));
     }
   });
 
@@ -278,11 +278,11 @@ export function importInventoryRecords(buffer: ArrayBuffer, now = new Date()): I
     const snapshotDate = parseDate(row[columnByTarget.get("snapshot_date") ?? ""]);
 
     if (!productCode || !productName) {
-      issues.push(makeIssue("error", "銘柄コードまたは銘柄名が空です", rowNumber));
+      issues.push(makeIssue("error", "product_code または product_name が空です", rowNumber));
       return;
     }
     if (!Number.isFinite(stockQty) || stockQty < 0) {
-      issues.push(makeIssue("error", "stock_qty は 0 以上の数値で指定してください", rowNumber, "stock_qty"));
+      issues.push(makeIssue("error", "stock_qty は 0 以上の数値（L）で指定してください", rowNumber, "stock_qty"));
       return;
     }
     if (!snapshotDate) {

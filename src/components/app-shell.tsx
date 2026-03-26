@@ -12,13 +12,27 @@ const navItems = [
   { href: "/plan" as Route, label: "必要醸造量", icon: FlaskConical }
 ];
 
+const defaultSidebarNote = {
+  title: "対象シーズン",
+  highlight: "2026-10-01 から 2027-09-30",
+  body: "PoC 範囲: 製品在庫、月次売上実績、手動補正による需要予測。数量の単位はすべて L です。"
+};
+
 export function AppShell({
+  eyebrow = "来季醸造量最適化",
   title,
   description,
+  sidebarNote = defaultSidebarNote,
   children
 }: {
+  eyebrow?: string;
   title: string;
   description: string;
+  sidebarNote?: {
+    title: string;
+    highlight: string;
+    body: string;
+  };
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -31,7 +45,7 @@ export function AppShell({
             <BarChart3 size={18} />
           </div>
           <div>
-            <p className="eyebrow">酒造計画ツール</p>
+            <p className="eyebrow">酒造向け社内ツール</p>
             <h1>BrewPilot</h1>
           </div>
         </div>
@@ -51,15 +65,15 @@ export function AppShell({
         </nav>
 
         <div className="sidebar-note">
-          <p className="eyebrow">対象期間</p>
-          <strong>2026-10-01 から 2027-09-30</strong>
-          <p className="muted">PoC 範囲: 製品在庫、月次売上実績、手動補正による需要予測。</p>
+          <p className="eyebrow">{sidebarNote.title}</p>
+          <strong>{sidebarNote.highlight}</strong>
+          <p className="muted">{sidebarNote.body}</p>
         </div>
       </aside>
 
       <main className="main">
         <header className="page-header">
-          <p className="eyebrow">来季醸造量計画</p>
+          <p className="eyebrow">{eyebrow}</p>
           <h2>{title}</h2>
           <p className="page-description">{description}</p>
         </header>

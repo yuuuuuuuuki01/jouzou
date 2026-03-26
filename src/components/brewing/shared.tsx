@@ -44,7 +44,7 @@ export function SectionCard({
 
 export function IssueList({ issues }: { issues: ImportIssue[] }) {
   if (issues.length === 0) {
-    return <p className="muted">検証上の問題はありません。</p>;
+    return <p className="muted">取り込み時のエラー・警告はありません。</p>;
   }
 
   return (
@@ -90,6 +90,10 @@ export function formatNumber(value: number, digits = 0) {
   }).format(value);
 }
 
+export function formatVolume(value: number, digits = 0) {
+  return `${formatNumber(value, digits)} L`;
+}
+
 export function ForecastChart({ points }: { points: ForecastPoint[] }) {
   const width = 760;
   const height = 240;
@@ -107,7 +111,7 @@ export function ForecastChart({ points }: { points: ForecastPoint[] }) {
 
   return (
     <div className="chart-panel">
-      <svg viewBox={`0 0 ${width} ${height}`} className="chart-svg" role="img" aria-label="forecast chart">
+      <svg viewBox={`0 0 ${width} ${height}`} className="chart-svg" role="img" aria-label="需要予測チャート">
         <defs>
           <linearGradient id="forecast-area" x1="0" x2="0" y1="0" y2="1">
             <stop offset="0%" stopColor="rgba(179, 89, 43, 0.35)" />

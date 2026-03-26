@@ -6,7 +6,7 @@ import { Database, FileSpreadsheet, Plus, RefreshCcw, Trash2, UploadCloud } from
 import * as XLSX from "xlsx";
 
 import { useBrewPlanner } from "@/components/brewing/brew-planner-provider";
-import { HeaderMappingTable, IssueList, SectionCard, StatCard, formatNumber } from "@/components/brewing/shared";
+import { HeaderMappingTable, IssueList, SectionCard, StatCard, formatNumber, formatVolume } from "@/components/brewing/shared";
 import { importInventoryRecords, importSalesRecords } from "@/lib/brewing/parser";
 import type { InventoryImportResult, InventorySnapshot, MonthlySalesRecord, SalesImportResult } from "@/lib/brewing/types";
 
@@ -79,7 +79,7 @@ function UploadCard({
         onImported(nextResult);
       });
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "取込に失敗しました。");
+      setError(uploadError instanceof Error ? uploadError.message : "取込中にエラーが発生しました。");
     } finally {
       setPending(false);
     }
@@ -99,7 +99,7 @@ function UploadCard({
         <div className="upload-icon">{icon}</div>
         <div>
           <p className="muted">{caption}</p>
-          <p className="helper-text">CSV / XLSX の先頭シートをブラウザ上で検証して取り込みます。</p>
+          <p className="helper-text">CSV / XLSX の先頭シートをブラウザ内で検証して取り込みます。数量はすべて L 前提です。</p>
         </div>
       </div>
 
@@ -116,7 +116,7 @@ function UploadCard({
 
       <div className="button-row">
         <button type="button" className="button" disabled={pending} onClick={handleUpload}>
-          {pending ? "検証中..." : "検証して取り込む"}
+          {pending ? "取込中..." : "取込して反映"}
         </button>
       </div>
 
@@ -125,7 +125,7 @@ function UploadCard({
       {result ? (
         <div className="stack">
           <div className="pill-row">
-            <span className="pill ok">取込 {result.summary.acceptedRows} 件</span>
+            <span className="pill ok">受理 {result.summary.acceptedRows} 行</span>
             <span className="pill neutral">全 {result.summary.totalRows} 行</span>
             <span className="pill warn">警告 {result.summary.warningCount}</span>
             <span className="pill risk">エラー {result.summary.errorCount}</span>
@@ -137,10 +137,10 @@ function UploadCard({
           <table className="table compact-table">
             <thead>
               <tr>
-                <th>銘柄コード</th>
-                <th>銘柄名</th>
+                <th>商品コード</th>
+                <th>商品名</th>
                 <th>対象年月</th>
-                <th>数量</th>
+                <th>数量 (L)</th>
               </tr>
             </thead>
             <tbody>
@@ -149,7 +149,7 @@ function UploadCard({
                   <td>{record.productCode}</td>
                   <td>{record.productName}</td>
                   <td>{previewDate(record)}</td>
-                  <td>{formatNumber(previewQuantity(record))}</td>
+                  <td>{formatVolume(previewQuantity(record))}</td>
                 </tr>
               ))}
             </tbody>
@@ -195,9 +195,9 @@ export function ImportWorkspace() {
         detail: inventoryImport ? `${inventoryImport.products.length} 銘柄を読込済み` : "現在在庫をアップロード"
       },
       {
-        label: "次の操作",
-        value: salesImport ? "準備完了" : "待機中",
-        detail: salesImport ? "需要予測画面で補正を設定" : "まず売上実績の取込が必要"
+        label: "入力単位",
+        value: "L",
+        detail: "売上実績・在庫・醸造量はすべてリットルで扱います"
       }
     ],
     [inventoryImport, salesImport]
@@ -205,7 +205,7 @@ export function ImportWorkspace() {
 
   function appendSalesRow() {
     if (!salesDraft.productCode || !salesDraft.productName || !salesDraft.year || !salesDraft.month || !salesDraft.salesQty) {
-      setSalesManualError("売上実績の各項目をすべて入力してください。");
+      setSalesManualError("売上実績入力の各項目をすべて入力してください。");
       return;
     }
 
@@ -267,11 +267,11 @@ export function ImportWorkspace() {
   return (
     <div className="page-stack">
       <section className="hero hero-brew">
-        <p className="eyebrow">対象期間 2026-10 から 2027-09</p>
+        <p className="eyebrow">対象シーズン 2026-10 から 2027-09</p>
         <h3>現在在庫と来季需要をつないで、必要な醸造量を先に見積もる。</h3>
         <p>
           月次売上実績と現在在庫を取り込むと、次の画面で季節性と直近トレンドから月別需要を推計できます。
-          ファイル取込に加えて、下のフォームから実績や在庫を手入力することもできます。
+          ファイル取込に加えて、下のフォームから実績や在庫を手入力することもできます。数量の単位はすべて L です。
         </p>
         <div className="hero-actions">
           <Link href="/forecast" className="button secondary-button">
@@ -315,13 +315,14 @@ export function ImportWorkspace() {
 
       <section className="split split-balanced">
         <SectionCard title="売上実績を手入力">
+          <p className="helper-text">月次売上実績を 1 行ずつ追加できます。数量は L で入力してください。</p>
           <div className="manual-grid manual-grid-sales">
             <label className="field">
-              <span className="helper-text">銘柄コード</span>
+              <span className="helper-text">商品コード</span>
               <input value={salesDraft.productCode} onChange={(event) => setSalesDraft((current) => ({ ...current, productCode: event.target.value }))} />
             </label>
             <label className="field">
-              <span className="helper-text">銘柄名</span>
+              <span className="helper-text">商品名</span>
               <input value={salesDraft.productName} onChange={(event) => setSalesDraft((current) => ({ ...current, productName: event.target.value }))} />
             </label>
             <label className="field">
@@ -333,14 +334,14 @@ export function ImportWorkspace() {
               <input value={salesDraft.month} onChange={(event) => setSalesDraft((current) => ({ ...current, month: event.target.value }))} placeholder="10" />
             </label>
             <label className="field">
-              <span className="helper-text">数量</span>
+              <span className="helper-text">数量 (L)</span>
               <input value={salesDraft.salesQty} onChange={(event) => setSalesDraft((current) => ({ ...current, salesQty: event.target.value }))} placeholder="1200" />
             </label>
           </div>
           <div className="button-row">
             <button type="button" className="button" onClick={appendSalesRow}>
               <Plus size={16} />
-              1行追加
+              1 行追加
             </button>
             <button type="button" className="ghost-button" onClick={importSalesFromManualRows}>
               この内容で取り込む
@@ -350,11 +351,11 @@ export function ImportWorkspace() {
           <table className="table compact-table">
             <thead>
               <tr>
-                <th>銘柄コード</th>
-                <th>銘柄名</th>
+                <th>商品コード</th>
+                <th>商品名</th>
                 <th>年</th>
                 <th>月</th>
-                <th>数量</th>
+                <th>数量 (L)</th>
                 <th>操作</th>
               </tr>
             </thead>
@@ -365,9 +366,13 @@ export function ImportWorkspace() {
                   <td>{row.productName}</td>
                   <td>{row.year}</td>
                   <td>{row.month}</td>
-                  <td>{row.salesQty}</td>
+                  <td>{row.salesQty} L</td>
                   <td>
-                    <button type="button" className="ghost-button" onClick={() => setSalesRows((current) => current.filter((_, currentIndex) => currentIndex !== index))}>
+                    <button
+                      type="button"
+                      className="ghost-button"
+                      onClick={() => setSalesRows((current) => current.filter((_, currentIndex) => currentIndex !== index))}
+                    >
                       削除
                     </button>
                   </td>
@@ -376,7 +381,7 @@ export function ImportWorkspace() {
               {salesRows.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="muted">
-                    まだ行がありません。上のフォームで追加してください。
+                    まだ行がありません。上のフォームで実績を追加してください。
                   </td>
                 </tr>
               ) : null}
@@ -385,17 +390,18 @@ export function ImportWorkspace() {
         </SectionCard>
 
         <SectionCard title="在庫を手入力">
+          <p className="helper-text">現在在庫を 1 行ずつ追加できます。在庫量は L で入力してください。</p>
           <div className="manual-grid manual-grid-inventory">
             <label className="field">
-              <span className="helper-text">銘柄コード</span>
+              <span className="helper-text">商品コード</span>
               <input value={inventoryDraft.productCode} onChange={(event) => setInventoryDraft((current) => ({ ...current, productCode: event.target.value }))} />
             </label>
             <label className="field">
-              <span className="helper-text">銘柄名</span>
+              <span className="helper-text">商品名</span>
               <input value={inventoryDraft.productName} onChange={(event) => setInventoryDraft((current) => ({ ...current, productName: event.target.value }))} />
             </label>
             <label className="field">
-              <span className="helper-text">在庫数量</span>
+              <span className="helper-text">在庫量 (L)</span>
               <input value={inventoryDraft.stockQty} onChange={(event) => setInventoryDraft((current) => ({ ...current, stockQty: event.target.value }))} placeholder="800" />
             </label>
             <label className="field">
@@ -406,7 +412,7 @@ export function ImportWorkspace() {
           <div className="button-row">
             <button type="button" className="button" onClick={appendInventoryRow}>
               <Plus size={16} />
-              1行追加
+              1 行追加
             </button>
             <button type="button" className="ghost-button" onClick={importInventoryFromManualRows}>
               この内容で取り込む
@@ -416,9 +422,9 @@ export function ImportWorkspace() {
           <table className="table compact-table">
             <thead>
               <tr>
-                <th>銘柄コード</th>
-                <th>銘柄名</th>
-                <th>在庫数量</th>
+                <th>商品コード</th>
+                <th>商品名</th>
+                <th>在庫量 (L)</th>
                 <th>基準日</th>
                 <th>操作</th>
               </tr>
@@ -428,10 +434,14 @@ export function ImportWorkspace() {
                 <tr key={`${row.productCode}-${row.snapshotDate}-${index}`}>
                   <td>{row.productCode}</td>
                   <td>{row.productName}</td>
-                  <td>{row.stockQty}</td>
+                  <td>{row.stockQty} L</td>
                   <td>{row.snapshotDate}</td>
                   <td>
-                    <button type="button" className="ghost-button" onClick={() => setInventoryRows((current) => current.filter((_, currentIndex) => currentIndex !== index))}>
+                    <button
+                      type="button"
+                      className="ghost-button"
+                      onClick={() => setInventoryRows((current) => current.filter((_, currentIndex) => currentIndex !== index))}
+                    >
                       削除
                     </button>
                   </td>
@@ -440,7 +450,7 @@ export function ImportWorkspace() {
               {inventoryRows.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="muted">
-                    まだ行がありません。上のフォームで追加してください。
+                    まだ行がありません。上のフォームで在庫を追加してください。
                   </td>
                 </tr>
               ) : null}

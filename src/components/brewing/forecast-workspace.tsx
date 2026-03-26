@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { useBrewPlanner } from "@/components/brewing/brew-planner-provider";
-import { ForecastChart, SectionCard, StatCard, formatNumber } from "@/components/brewing/shared";
+import { ForecastChart, SectionCard, StatCard, formatNumber, formatVolume } from "@/components/brewing/shared";
 import { generateForecast } from "@/lib/brewing/forecast";
 import type { ForecastAdjustment, ProductForecast } from "@/lib/brewing/types";
 
@@ -28,8 +28,8 @@ function AdjustmentEditor({
   return (
     <div className="inline-form">
       <select value={mode} onChange={(event) => setMode(event.target.value as ForecastAdjustment["mode"])}>
-        <option value="percent">％補正</option>
-        <option value="absolute">数量加減</option>
+        <option value="percent">% 補正</option>
+        <option value="absolute">数量加減 (L)</option>
       </select>
       <input value={value} onChange={(event) => setValue(event.target.value)} placeholder="0" />
       <button
@@ -108,17 +108,17 @@ export function ForecastWorkspace() {
       {
         label: "対象銘柄数",
         value: forecast ? formatNumber(forecast.productForecasts.length) : "0",
-        detail: "季節性と直近トレンドを反映"
+        detail: "季節指数と直近トレンドを自動計算"
       },
       {
         label: "来季予測合計",
-        value: forecast ? formatNumber(forecast.productForecasts.reduce((sum, item) => sum + item.forecastTotal, 0)) : "0",
-        detail: "2026-10 から 2027-09 の補正後合計"
+        value: forecast ? formatVolume(forecast.productForecasts.reduce((sum, item) => sum + item.forecastTotal, 0)) : "0 L",
+        detail: "2026-10 から 2027-09 の補正後予測"
       },
       {
         label: "手動補正数",
         value: formatNumber(adjustments.length),
-        detail: adjustments.length > 0 ? "手動補正が有効" : "手動補正なし"
+        detail: adjustments.length > 0 ? "銘柄別・月別の補正を反映中" : "まだ補正はありません"
       }
     ],
     [adjustments.length, forecast]
@@ -149,10 +149,10 @@ export function ForecastWorkspace() {
     <div className="page-stack">
       <section className="hero hero-forecast">
         <p className="eyebrow">需要予測スタジオ</p>
-        <h3>季節性を確認しながら、現場判断を補正として上乗せする。</h3>
+        <h3>季節性を説明可能な形で予測しながら、現場補正をそのまま来季計画へつなぐ。</h3>
         <p>
           ベース予測は、外れ値を抑えた過去実績、月別季節指数、直近の加重トレンドから自動算出します。
-          販促、イベント、販路変更などは銘柄単位または月単位で補正してください。
+          補正後の需要はそのまま必要醸造量の計算に使われます。数量の単位はすべて L です。
         </p>
         <div className="hero-actions">
           <Link href="/plan" className="button secondary-button">
@@ -185,7 +185,7 @@ export function ForecastWorkspace() {
                   <p className="muted">{product.productCode}</p>
                 </div>
                 <div className="align-right">
-                  <strong>{formatNumber(product.forecastTotal)}</strong>
+                  <strong>{formatVolume(product.forecastTotal)}</strong>
                   <p className="muted">トレンド {(product.yearlyTrendRate * 100).toFixed(1)}%</p>
                 </div>
               </button>
@@ -197,12 +197,12 @@ export function ForecastWorkspace() {
           <SectionCard title={`${selectedProduct.productName} の詳細`}>
             <div className="inline-stats">
               <div>
-                <p className="eyebrow">直近月販平均</p>
-                <strong>{formatNumber(selectedProduct.recentAverageMonthlySales)}</strong>
+                <p className="eyebrow">直近平均月販</p>
+                <strong>{formatVolume(selectedProduct.recentAverageMonthlySales)}</strong>
               </div>
               <div>
                 <p className="eyebrow">来季予測合計</p>
-                <strong>{formatNumber(selectedProduct.forecastTotal)}</strong>
+                <strong>{formatVolume(selectedProduct.forecastTotal)}</strong>
               </div>
             </div>
 
@@ -229,9 +229,9 @@ export function ForecastWorkspace() {
               <thead>
                 <tr>
                   <th>年月</th>
-                  <th>前年実績</th>
-                  <th>ベース予測</th>
-                  <th>補正後</th>
+                  <th>前年実績 (L)</th>
+                  <th>ベース予測 (L)</th>
+                  <th>補正後 (L)</th>
                   <th>月別補正</th>
                 </tr>
               </thead>
@@ -251,13 +251,11 @@ export function ForecastWorkspace() {
                   return (
                     <tr key={point.yearMonth}>
                       <td>{point.yearMonth}</td>
-                      <td>{point.lastYearQty == null ? "-" : formatNumber(point.lastYearQty)}</td>
-                      <td>{formatNumber(point.baseForecastQty)}</td>
+                      <td>{point.lastYearQty == null ? "-" : formatVolume(point.lastYearQty)}</td>
+                      <td>{formatVolume(point.baseForecastQty)}</td>
                       <td>
-                        <strong>{formatNumber(point.adjustedForecastQty)}</strong>
-                        {point.adjustmentsApplied.length > 0 ? (
-                          <p className="muted">{point.adjustmentsApplied.join(", ")}</p>
-                        ) : null}
+                        <strong>{formatVolume(point.adjustedForecastQty)}</strong>
+                        {point.adjustmentsApplied.length > 0 ? <p className="muted">{point.adjustmentsApplied.join(", ")}</p> : null}
                       </td>
                       <td>
                         <AdjustmentEditor

@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Download } from "lucide-react";
 
 import { useBrewPlanner } from "@/components/brewing/brew-planner-provider";
-import { SectionCard, StatCard, formatNumber } from "@/components/brewing/shared";
+import { SectionCard, StatCard, formatNumber, formatVolume } from "@/components/brewing/shared";
 import { generateBrewPlan } from "@/lib/brewing/plan";
 import type { BrewPlanResult } from "@/lib/brewing/types";
 
@@ -16,10 +16,10 @@ function downloadCsv(plan: BrewPlanResult) {
       "product_name",
       "season_start",
       "season_end",
-      "forecast_total",
-      "current_stock",
-      "safety_stock",
-      "required_brew_qty",
+      "forecast_total_l",
+      "current_stock_l",
+      "safety_stock_l",
+      "required_brew_qty_l",
       "adjustment_applied",
       "notes"
     ].join(","),
@@ -43,7 +43,7 @@ function downloadCsv(plan: BrewPlanResult) {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = "brew-plan-2026-2027.csv";
+  anchor.download = "brew-plan-liters-2026-2027.csv";
   anchor.click();
   URL.revokeObjectURL(url);
 }
@@ -95,13 +95,13 @@ export function PlanWorkspace() {
     () => [
       {
         label: "必要醸造量合計",
-        value: plan ? formatNumber(plan.requirements.reduce((sum, item) => sum + item.requiredBrewQty, 0)) : "0",
+        value: plan ? formatVolume(plan.requirements.reduce((sum, item) => sum + item.requiredBrewQty, 0)) : "0 L",
         detail: "予測需要 + 安全在庫 - 現在在庫"
       },
       {
         label: "補正反映銘柄数",
         value: plan ? formatNumber(plan.requirements.filter((item) => item.adjustmentApplied).length) : "0",
-        detail: "手動補正が計画に反映された銘柄"
+        detail: "手動補正済みの需要予測を使った銘柄"
       },
       {
         label: "在庫で充足可能",
@@ -138,9 +138,10 @@ export function PlanWorkspace() {
     <div className="page-stack">
       <section className="hero hero-plan">
         <p className="eyebrow">必要醸造量</p>
-        <h3>補正済み需要を、銘柄ごとの醸造必要量に落とし込む。</h3>
+        <h3>補正済み需要を、銘柄ごとの現在在庫と安全在庫に重ねて必要量へ落とし込む。</h3>
         <p>
           安全在庫月数は銘柄ごとに調整できます。値を変えるたびに必要醸造量を再計算し、そのまま CSV で出力できます。
+          売上・在庫・必要量の単位はすべて L です。
         </p>
         <div className="hero-actions">
           {plan ? (
@@ -149,7 +150,7 @@ export function PlanWorkspace() {
               CSV を出力
             </button>
           ) : null}
-          {loading ? <span className="pill warn">再計算中...</span> : <span className="pill ok">計画作成済み</span>}
+          {loading ? <span className="pill warn">再計算中...</span> : <span className="pill ok">計算済み</span>}
         </div>
       </section>
 
@@ -166,12 +167,12 @@ export function PlanWorkspace() {
           <thead>
             <tr>
               <th>銘柄</th>
-              <th>来季予測合計</th>
-              <th>現在在庫</th>
+              <th>来季予測合計 (L)</th>
+              <th>現在在庫 (L)</th>
               <th>安全在庫月数</th>
-              <th>安全在庫</th>
-              <th>必要醸造量</th>
-              <th>備考</th>
+              <th>安全在庫 (L)</th>
+              <th>必要醸造量 (L)</th>
+              <th>根拠</th>
             </tr>
           </thead>
           <tbody>
@@ -181,8 +182,8 @@ export function PlanWorkspace() {
                   <strong>{requirement.productName}</strong>
                   <p className="muted">{requirement.productCode}</p>
                 </td>
-                <td>{formatNumber(requirement.forecastTotal)}</td>
-                <td>{formatNumber(requirement.currentStock)}</td>
+                <td>{formatVolume(requirement.forecastTotal)}</td>
+                <td>{formatVolume(requirement.currentStock)}</td>
                 <td>
                   <input
                     className="compact-input"
@@ -192,9 +193,9 @@ export function PlanWorkspace() {
                     onChange={(event) => setSafetyStockMonths(requirement.productCode, Number(event.target.value))}
                   />
                 </td>
-                <td>{formatNumber(requirement.safetyStock, 1)}</td>
+                <td>{formatVolume(requirement.safetyStock, 1)}</td>
                 <td>
-                  <strong>{formatNumber(requirement.requiredBrewQty)}</strong>
+                  <strong>{formatVolume(requirement.requiredBrewQty)}</strong>
                 </td>
                 <td className="notes-cell">{requirement.notes.join(" / ")}</td>
               </tr>
